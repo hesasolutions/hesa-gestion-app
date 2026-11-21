@@ -41,27 +41,50 @@
     <div id="msg"><div class="loader" aria-hidden="true"></div><p>Ouverture…</p></div>
   </div>
 </div>
-<iframe id="app" title="Hesa Gestion" allow="clipboard-write; geolocation; camera"></iframe>
 <script>
 (function(){
-  var KEY="hesa-app-lien", $=function(id){ return document.getElementById(id); };
+  var KEY="hesa-app-lien", $=function(id){ return document.getElementById(id); }, msg=$("msg");
   function valid(x){ return /^https:\/\/script\.google\.com\/(a\/macros\/[^\/]+|macros)\/s\/[A-Za-z0-9_-]+\/exec$/.test(x||""); }
+  function norm(x){ var m=/^https:\/\/script\.google\.com\/(?:a\/macros\/[^\/]+|macros)\/s\/([A-Za-z0-9_-]+)\/exec$/.exec(x||""); return m?"https://script.google.com/macros/s/"+m[1]+"/exec":x; }
   function read(){ try{ return JSON.parse(localStorage.getItem(KEY)||"null"); }catch(e){ return null; } }
   function save(v){ try{ localStorage.setItem(KEY,JSON.stringify(v)); }catch(e){} }
-  function norm(x){ var m=/^https:\/\/script\.google\.com\/(?:a\/macros\/[^\/]+|macros)\/s\/([A-Za-z0-9_-]+)\/exec$/.exec(x||""); return m?"https:\/\/script.google.com/macros/s/"+m[1]+"/exec":x; }
   function parse(s){ try{ var u=new URL(s,location.href), p=u.searchParams; var x=p.get("x"), uid=p.get("u"), k=p.get("k");
       if(!x&&/script\.google\.com/.test(u.host)){ x=u.origin+u.pathname; }
-      if(valid(x)&&uid&&k) return {x:x,u:uid,k:k}; }catch(e){} return null; }
-  function open(v){ v.x=norm(v.x); location.replace(v.x+"?u="+encodeURIComponent(v.u)+"&k="+encodeURIComponent(v.k)); }
-  function ask(err){ $("msg").innerHTML='<h1>Bienvenue sur Hesa Gestion</h1><p>Ouvrez le lien personnel reçu par mail de Hesa Solutions, ou collez-le ici.</p>'+
-      '<input id="lien" placeholder="Collez votre lien personnel" autocomplete="off" inputmode="url"><button id="go">Continuer</button><div class="err" id="err">'+(err||"")+'</div>'+
+      if(valid(x)&&uid&&k) return {x:norm(x),u:uid,k:k}; }catch(e){} return null; }
+  function esc(t){ return String(t==null?"":t).replace(/[&<>"']/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  /* Appel du logiciel SANS cookies Google : fonctionne même si le téléphone a plusieurs comptes Google */
+  function api(x,fn,args){ return fetch(x,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn:fn,args:args||[]}),credentials:"omit",redirect:"follow"})
+      .then(function(r){ return r.text(); }).then(function(t){ var r; try{ r=JSON.parse(t); }catch(e){ throw {message:"Le logiciel ne répond pas correctement. Réessayez dans un instant."}; } if(r&&r.ok) return r.data; throw {message:(r&&r.message)||"Erreur", code:r&&r.code}; }); }
+  function bridge(x){ return "<scr"+"ipt>(function(){ var X="+JSON.stringify(x)+"; function mk(){ var ok,ko,o=new Proxy({},{get:function(t,n){ if(n==='withSuccessHandler') return function(f){ ok=f; return o; }; if(n==='withFailureHandler') return function(f){ ko=f; return o; };"+
+      " return function(){ var a=[].slice.call(arguments); fetch(X,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn:n,args:a}),credentials:'omit',redirect:'follow'}).then(function(r){ return r.text(); }).then(function(t){ if(ok) ok(t); }).catch(function(e){ if(ko) ko(e); }); }; }}); return o; }"+
+      " window.google={script:{get run(){ return mk(); }}}; window.__hesaApp=true; })();</scr"+"ipt>"; }
+  function tool(v,html){ var h=String(html||""), i=h.indexOf("<head>"); h=i>=0?h.slice(0,i+6)+bridge(v.x)+h.slice(i+6):bridge(v.x)+h;
+    h=h.replace("<head>",'<head><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#141C3B">');
+    document.open(); document.write(h); document.close(); }
+  function busy(t){ msg.innerHTML='<div class="loader" aria-hidden="true"></div><p>'+esc(t)+'</p>'; }
+  function fail(t,v){ msg.innerHTML='<h1>Connexion impossible</h1><p>'+esc(t)+'</p><button id="re">Réessayer</button><button class="ghost" id="other">Utiliser un autre lien</button>';
+    $("re").onclick=function(){ start(v); }; $("other").onclick=function(){ try{ localStorage.removeItem(KEY); }catch(e){} ask(); }; }
+  function sidKey(v){ return "hesa-sid:"+v.u; }
+  function start(v){ busy("Ouverture…"); var sid=null; try{ sid=localStorage.getItem(sidKey(v)); }catch(e){}
+    if(sid) api(v.x,"resume",[v.u,v.k,sid]).then(function(r){ tool(v,r.html); }).catch(function(){ try{ localStorage.removeItem(sidKey(v)); }catch(e){} info(v); });
+    else info(v); }
+  function info(v){ busy("Vérification du lien…");
+    api(v.x,"loginInfo",[v.u,v.k]).then(function(i){
+      msg.innerHTML='<h1>Bonjour '+esc(i.nom)+'</h1><p>Accès à la gestion de <b>'+esc(i.societe)+'</b>. Pour vous connecter, recevez un code à 6 chiffres sur <b>'+esc(i.email)+'</b>.</p><button id="b">Recevoir mon code</button><div class="err" id="err"></div>';
+      $("b").onclick=function(){ var b=this; b.disabled=true; b.textContent="Envoi…"; api(v.x,"sendCode",[v.u,v.k]).then(function(r){ code(v,r); }).catch(function(e){ $("err").textContent=e.message; b.disabled=false; b.textContent="Recevoir mon code"; }); };
+    }).catch(function(e){ fail(e.message,v); }); }
+  function code(v,r){ msg.innerHTML='<h1>Code envoyé</h1><p>Entrez le code reçu sur <b>'+esc(r.email)+'</b> (valable 10 minutes).</p><input id="c" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="••••••" style="text-align:center;font-size:24px;letter-spacing:6px"><button id="v">Se connecter</button><div class="err" id="err"></div><p class="hint">Rien reçu ? Regardez dans les indésirables.</p>';
+    var c=$("c"), b=$("v"); c.focus(); c.onkeydown=function(e){ if(e.key==="Enter") b.click(); };
+    b.onclick=function(){ b.disabled=true; b.textContent="Vérification…"; api(v.x,"verifyCode",[v.u,v.k,c.value]).then(function(r){ try{ localStorage.setItem(sidKey(v),r.sid); }catch(e){} tool(v,r.html); }).catch(function(e){ $("err").textContent=e.message; b.disabled=false; b.textContent="Se connecter"; }); }; }
+  function ask(err){ msg.innerHTML='<h1>Bienvenue sur Hesa Gestion</h1><p>Ouvrez le lien personnel reçu par mail de Hesa Solutions, ou collez-le ici.</p>'+
+      '<input id="lien" placeholder="Collez votre lien personnel" autocomplete="off" inputmode="url"><button id="go">Continuer</button><div class="err" id="err">'+esc(err||"")+'</div>'+
       '<p class="hint">Besoin d\'aide ? info@hesasolutions.com</p>';
-    $("go").onclick=function(){ var v=parse($("lien").value.trim()); if(!v){ $("err").textContent="Ce lien n'est pas reconnu. Copiez le lien complet du mail d'invitation."; return; } save(v); open(v); }; }
+    $("go").onclick=function(){ var v=parse($("lien").value.trim()); if(!v){ $("err").textContent="Ce lien n'est pas reconnu. Copiez le lien complet du mail d'invitation."; return; } save(v); start(v); }; }
   if(/[?&]reset=1/.test(location.search)){ try{ localStorage.removeItem(KEY); }catch(e){} try{ history.replaceState(null,"",location.pathname); }catch(e){} }
   var fromUrl=parse(location.href);
-  if(fromUrl){ save(fromUrl); try{ history.replaceState(null,"",location.pathname); }catch(e){} open(fromUrl); }
-  else { var v=read(); if(v&&valid(v.x)) open(v); else ask(); }
-  if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function(){});
+  if(fromUrl){ save(fromUrl); try{ history.replaceState(null,"",location.pathname); }catch(e){} start(fromUrl); }
+  else { var v=read(); if(v&&valid(v.x)){ v.x=norm(v.x); start(v); } else ask(); }
+  if("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(function(){});
 })();
 </script>
 </body>
