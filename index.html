@@ -52,8 +52,7 @@
   function parse(s){ try{ var u=new URL(s,location.href), p=u.searchParams; var x=p.get("x"), uid=p.get("u"), k=p.get("k");
       if(!x&&/script\.google\.com/.test(u.host)){ x=u.origin+u.pathname; }
       if(valid(x)&&uid&&k) return {x:x,u:uid,k:k}; }catch(e){} return null; }
-  function open(v){ var f=$("app"); v.x=norm(v.x); f.src=v.x+"?u="+encodeURIComponent(v.u)+"&k="+encodeURIComponent(v.k); f.style.display="block";
-    f.onload=function(){ $("start").style.display="none"; }; setTimeout(function(){ $("start").style.display="none"; },6000); }
+  function open(v){ v.x=norm(v.x); location.replace(v.x+"?u="+encodeURIComponent(v.u)+"&k="+encodeURIComponent(v.k)); }
   function ask(err){ $("msg").innerHTML='<h1>Bienvenue sur Hesa Gestion</h1><p>Ouvrez le lien personnel reçu par mail de Hesa Solutions, ou collez-le ici.</p>'+
       '<input id="lien" placeholder="Collez votre lien personnel" autocomplete="off" inputmode="url"><button id="go">Continuer</button><div class="err" id="err">'+(err||"")+'</div>'+
       '<p class="hint">Besoin d\'aide ? info@hesasolutions.com</p>';
