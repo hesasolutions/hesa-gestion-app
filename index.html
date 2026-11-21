@@ -48,15 +48,17 @@
   function valid(x){ return /^https:\/\/script\.google\.com\/(a\/macros\/[^\/]+|macros)\/s\/[A-Za-z0-9_-]+\/exec$/.test(x||""); }
   function read(){ try{ return JSON.parse(localStorage.getItem(KEY)||"null"); }catch(e){ return null; } }
   function save(v){ try{ localStorage.setItem(KEY,JSON.stringify(v)); }catch(e){} }
+  function norm(x){ var m=/^https:\/\/script\.google\.com\/(?:a\/macros\/[^\/]+|macros)\/s\/([A-Za-z0-9_-]+)\/exec$/.exec(x||""); return m?"https:\/\/script.google.com/macros/s/"+m[1]+"/exec":x; }
   function parse(s){ try{ var u=new URL(s,location.href), p=u.searchParams; var x=p.get("x"), uid=p.get("u"), k=p.get("k");
       if(!x&&/script\.google\.com/.test(u.host)){ x=u.origin+u.pathname; }
       if(valid(x)&&uid&&k) return {x:x,u:uid,k:k}; }catch(e){} return null; }
-  function open(v){ var f=$("app"); f.src=v.x+"?u="+encodeURIComponent(v.u)+"&k="+encodeURIComponent(v.k); f.style.display="block";
+  function open(v){ var f=$("app"); v.x=norm(v.x); f.src=v.x+"?u="+encodeURIComponent(v.u)+"&k="+encodeURIComponent(v.k); f.style.display="block";
     f.onload=function(){ $("start").style.display="none"; }; setTimeout(function(){ $("start").style.display="none"; },6000); }
   function ask(err){ $("msg").innerHTML='<h1>Bienvenue sur Hesa Gestion</h1><p>Ouvrez le lien personnel reçu par mail de Hesa Solutions, ou collez-le ici.</p>'+
       '<input id="lien" placeholder="Collez votre lien personnel" autocomplete="off" inputmode="url"><button id="go">Continuer</button><div class="err" id="err">'+(err||"")+'</div>'+
       '<p class="hint">Besoin d\'aide ? info@hesasolutions.com</p>';
     $("go").onclick=function(){ var v=parse($("lien").value.trim()); if(!v){ $("err").textContent="Ce lien n'est pas reconnu. Copiez le lien complet du mail d'invitation."; return; } save(v); open(v); }; }
+  if(/[?&]reset=1/.test(location.search)){ try{ localStorage.removeItem(KEY); }catch(e){} try{ history.replaceState(null,"",location.pathname); }catch(e){} }
   var fromUrl=parse(location.href);
   if(fromUrl){ save(fromUrl); try{ history.replaceState(null,"",location.pathname); }catch(e){} open(fromUrl); }
   else { var v=read(); if(v&&valid(v.x)) open(v); else ask(); }
