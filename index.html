@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Hesa Gestion</title>
+<meta name="description" content="Gestion de vos chantiers, factures, banque et équipes — Hesa Solutions">
+<meta name="theme-color" content="#141C3B">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Hesa">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root{--navy:#141C3B;--ink:#EEF1F8;--ink2:#A3ACC2;--line:#2A3558;--accent:#5AA2E6}
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--navy);color:var(--ink);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  #app{position:fixed;inset:0;width:100%;height:100%;border:0;background:#fff;display:none}
+  .screen{min-height:100%;display:grid;place-items:center;padding:max(24px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left))}
+  .box{width:100%;max-width:420px;display:flex;flex-direction:column;gap:18px;text-align:center}
+  .box img{width:70%;max-width:260px;margin:0 auto 8px}
+  h1{font-size:20px;margin:0;font-weight:600}
+  p{margin:0;color:var(--ink2)}
+  input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:#1B2550;color:var(--ink);font:inherit}
+  button{width:100%;padding:13px;border:0;border-radius:12px;background:var(--accent);color:#0B1430;font:600 16px inherit;cursor:pointer}
+  button.ghost{background:transparent;color:var(--ink2);border:1px solid var(--line)}
+  .err{color:#FF9AA8;font-size:14px;min-height:20px}
+  .hint{font-size:13px}
+  .loader{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);margin:8px auto;animation:r 1s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.loader{animation:none}}
+  #install{display:none}
+</style>
+</head>
+<body>
+<div class="screen" id="start">
+  <div class="box">
+    <img src="logo.png" alt="Hesa Solutions">
+    <div id="msg"><div class="loader" aria-hidden="true"></div><p>Ouverture…</p></div>
+  </div>
+</div>
+<iframe id="app" title="Hesa Gestion" allow="clipboard-write; geolocation; camera"></iframe>
+<script>
+(function(){
+  var KEY="hesa-app-lien", $=function(id){ return document.getElementById(id); };
+  function valid(x){ return /^https:\/\/script\.google\.com\/(a\/macros\/[^\/]+|macros)\/s\/[A-Za-z0-9_-]+\/exec$/.test(x||""); }
+  function read(){ try{ return JSON.parse(localStorage.getItem(KEY)||"null"); }catch(e){ return null; } }
+  function save(v){ try{ localStorage.setItem(KEY,JSON.stringify(v)); }catch(e){} }
+  function parse(s){ try{ var u=new URL(s,location.href), p=u.searchParams; var x=p.get("x"), uid=p.get("u"), k=p.get("k");
+      if(!x&&/script\.google\.com/.test(u.host)){ x=u.origin+u.pathname; }
+      if(valid(x)&&uid&&k) return {x:x,u:uid,k:k}; }catch(e){} return null; }
+  function open(v){ var f=$("app"); f.src=v.x+"?u="+encodeURIComponent(v.u)+"&k="+encodeURIComponent(v.k); f.style.display="block";
+    f.onload=function(){ $("start").style.display="none"; }; setTimeout(function(){ $("start").style.display="none"; },6000); }
+  function ask(err){ $("msg").innerHTML='<h1>Bienvenue sur Hesa Gestion</h1><p>Ouvrez le lien personnel reçu par mail de Hesa Solutions, ou collez-le ici.</p>'+
+      '<input id="lien" placeholder="Collez votre lien personnel" autocomplete="off" inputmode="url"><button id="go">Continuer</button><div class="err" id="err">'+(err||"")+'</div>'+
+      '<p class="hint">Besoin d\'aide ? info@hesasolutions.com</p>';
+    $("go").onclick=function(){ var v=parse($("lien").value.trim()); if(!v){ $("err").textContent="Ce lien n'est pas reconnu. Copiez le lien complet du mail d'invitation."; return; } save(v); open(v); }; }
+  var fromUrl=parse(location.href);
+  if(fromUrl){ save(fromUrl); try{ history.replaceState(null,"",location.pathname); }catch(e){} open(fromUrl); }
+  else { var v=read(); if(v&&valid(v.x)) open(v); else ask(); }
+  if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function(){});
+})();
+</script>
+</body>
+</html>
