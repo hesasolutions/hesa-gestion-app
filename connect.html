@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Connecter votre boîte Google — Hesa Gestion</title>
+<meta name="theme-color" content="#141C3B">
+<meta name="robots" content="noindex">
+<link rel="icon" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root{--navy:#141C3B;--ink:#0F1426;--ink2:#4A5368;--line:#E3E6EF;--brand:#1565A8}
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:var(--navy);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink)}
+  .screen{min-height:100vh;display:grid;place-items:center;padding:max(20px,env(safe-area-inset-top)) 16px max(20px,env(safe-area-inset-bottom))}
+  .c{background:#fff;border-radius:22px;padding:28px 24px;max-width:440px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+  .logo{display:block;width:130px;margin:0 auto 18px;border-radius:12px;background:var(--navy);padding:10px 14px}
+  h1{font-size:22px;margin:0 0 10px;text-align:center;letter-spacing:-.01em}
+  p,li{color:var(--ink2)} ul{padding-left:20px;margin:8px 0}
+  .g{display:flex;align-items:center;justify-content:center;gap:10px;background:#fff;border:1px solid #DADCE0;color:#3C4043;font-weight:600;text-decoration:none;padding:14px 18px;border-radius:999px;margin:22px 0 12px;font-size:16px;width:100%;cursor:pointer}
+  .g:active{background:#F1F3F4}
+  .s{font-size:13.5px;color:#6B7385}
+  .ok{font-size:46px;text-align:center;margin:0}
+  .btn{display:block;text-align:center;background:var(--brand);color:#fff;text-decoration:none;font-weight:700;padding:13px;border-radius:12px;margin-top:18px}
+  .loader{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--brand);margin:20px auto;animation:r 1s linear infinite}
+  @keyframes r{to{transform:rotate(360deg)}}
+  .err{color:#C62828}
+</style>
+</head>
+<body>
+<div class="screen"><div class="c"><img class="logo" src="logo.png" alt="Hesa Solutions"><div id="m"><div class="loader" aria-hidden="true"></div><p style="text-align:center">Chargement…</p></div></div></div>
+<script src="config.js"></script>
+<script>
+(function(){
+  var m=document.getElementById("m"), q=new URLSearchParams(location.search), X=window.HESA_EXEC||"";
+  var G='<svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.5l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.6 5.4 2.6 13.3l7.8 6C12.3 13.4 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 7.1-10 7.1-17.5z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.8-6C.9 16.6 0 20.2 0 24s.9 7.4 2.6 10.7l7.8-6z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.4 2.3-6.3 0-11.7-3.9-13.6-9.6l-7.8 6C6.6 42.6 14.6 48 24 48z"/></svg>';
+  function esc(t){ return String(t==null?"":t).replace(/[&<>"']/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  function api(fn,args){ return fetch(X,{method:"POST",headers:{"Content-Type":"text/plain;charset=utf-8"},body:JSON.stringify({fn:fn,args:args||[]}),credentials:"omit",redirect:"follow"})
+    .then(function(r){ return r.text(); }).then(function(t){ var r; try{ r=JSON.parse(t); }catch(e){ throw {message:"Le service ne répond pas correctement. Réessayez dans un instant."}; } if(r&&r.ok) return r.data; throw {message:(r&&r.message)||"Erreur"}; }); }
+  function fail(t){ m.innerHTML='<h1>Connexion impossible</h1><p class="err">'+esc(t)+'</p><p class="s">Demandez un nouveau lien à Hesa Solutions (info@hesasolutions.com).</p>'; }
+  var back='<a class="btn" href="/">Ouvrir Hesa Gestion</a>';
+  if(!X) return fail("Configuration incomplète.");
+  if(q.get("state")&&(q.get("code")||q.get("error"))){
+    m.innerHTML='<div class="loader"></div><p style="text-align:center">Finalisation de la connexion…</p>';
+    try{ history.replaceState(null,"",location.pathname); }catch(e){}
+    api("oauthFinish",[q.get("state"),q.get("code")||"",q.get("error")||""]).then(function(r){
+      m.innerHTML=(r.ok?'<p class="ok">✅</p>':'')+'<h1>'+esc(r.titre)+'</h1>'+r.corps+(r.ok?back:'');
+    }).catch(function(e){ fail(e.message); });
+    return; }
+  var t=q.get("t"); if(!t) return fail("Lien incomplet.");
+  api("oauthStart",[t]).then(function(r){
+    m.innerHTML='<h1>Connecter '+esc(r.societe)+'</h1><p>Hesa Gestion va pouvoir, pour la boîte <b>'+esc(r.email)+'</b> :</p><ul><li>lire et classer vos mails, et préparer des réponses ;</li><li>consulter et ajouter des rendez-vous dans votre agenda.</li></ul>'+
+      '<a class="g" id="go" href="'+esc(r.url)+'">'+G+' Se connecter avec Google</a>'+
+      '<p class="s">Choisissez le compte <b>'+esc(r.email)+'</b> et <b>cochez toutes les autorisations</b>. Aucun mot de passe n\'est communiqué à Hesa ; vous pouvez retirer l\'accès à tout moment dans votre compte Google.</p>'+
+      '<p class="s">Si Google affiche « Google n\'a pas validé cette application » : touchez <b>Paramètres avancés</b> (ou « Avancé »), puis <b>Accéder à Hesa Gestion</b>.</p>';
+  }).catch(function(e){ fail(e.message); });
+})();
+</script>
+</body>
+</html>
