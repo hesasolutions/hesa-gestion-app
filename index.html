@@ -59,7 +59,7 @@
       .then(function(r){ return r.text(); }).then(function(t){ var r; try{ r=JSON.parse(t); }catch(e){ throw {message:"Le logiciel ne répond pas correctement. Réessayez dans un instant."}; } if(r&&r.ok) return r.data; throw {message:(r&&r.message)||"Erreur", code:r&&r.code}; }); }
   function bridge(x){ return "<scr"+"ipt>(function(){ var X="+JSON.stringify(x)+"; function mk(){ var ok,ko,o=new Proxy({},{get:function(t,n){ if(n==='withSuccessHandler') return function(f){ ok=f; return o; }; if(n==='withFailureHandler') return function(f){ ko=f; return o; };"+
       " return function(){ var a=[].slice.call(arguments); fetch(X,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn:n,args:a}),credentials:'omit',redirect:'follow'}).then(function(r){ return r.text(); }).then(function(t){ if(ok) ok(t); }).catch(function(e){ if(ko) ko(e); }); }; }}); return o; }"+
-      " window.google={script:{get run(){ return mk(); }}}; window.__hesaApp=true; })();</scr"+"ipt>"; }
+      " window.google={script:{get run(){ return mk(); }}}; window.__hesaApp=true; window.__hesaX=X; })();</scr"+"ipt>"; }
   function tool(v,html){ var h=String(html||""), i=h.indexOf("<head>"); h=i>=0?h.slice(0,i+6)+bridge(v.x)+h.slice(i+6):bridge(v.x)+h;
     h=h.replace("<head>",'<head><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#141C3B">');
     document.open(); document.write(h); document.close(); }
