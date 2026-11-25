@@ -62,6 +62,13 @@
   function bridge(x){ return "<scr"+"ipt>(function(){ var X="+JSON.stringify(x)+"; function mk(){ var ok,ko,o=new Proxy({},{get:function(t,n){ if(n==='withSuccessHandler') return function(f){ ok=f; return o; }; if(n==='withFailureHandler') return function(f){ ko=f; return o; };"+
       " return function(){ var a=[].slice.call(arguments); fetch(X,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn:n,args:a}),credentials:'omit',redirect:'follow'}).then(function(r){ return r.text(); }).then(function(t){ if(ok) ok(t); }).catch(function(e){ if(ko) ko(e); }); }; }}); return o; }"+
       " window.google={script:{get run(){ return mk(); }}}; window.__hesaApp=true; window.__hesaX=X; })();</scr"+"ipt>"; }
+  function adminBridge(x,sid){ return "<scr"+"ipt>(function(){ var X="+JSON.stringify(x)+", SID="+JSON.stringify(sid)+"; function mk(){ var ok,ko,o=new Proxy({},{get:function(t,n){ if(n==='withSuccessHandler') return function(f){ ok=f; return o; }; if(n==='withFailureHandler') return function(f){ ko=f; return o; };"+
+      " return function(){ var a=[].slice.call(arguments); fetch(X,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify({fn:'adminCall',args:[SID,n].concat(a)}),credentials:'omit',redirect:'follow'}).then(function(r){ return r.text(); }).then(function(t){ var r; try{ r=JSON.parse(t); }catch(e){ r={ok:false,message:'Le service ne répond pas correctement.'}; }"+
+      " if(r.ok){ if(ok) ok(r.data); } else { if(r.code==='needs_reauth'){ try{ localStorage.removeItem('hesa-app-session'); }catch(e){} location.href='/'; return; } if(ko) ko({message:r.message||'Erreur'}); } }).catch(function(e){ if(ko) ko({message:'Connexion impossible. Vérifiez internet.'}); }); }; }}); return o; }"+
+      " window.google={script:{get run(){ return mk(); }}}; window.__hesaApp=true; window.__hesaAdminApp=true; window.__hesaX=X; })();</scr"+"ipt>"; }
+  function adminPage(s,html){ var h=String(html||""), i=h.indexOf("<head>"); h=i>=0?h.slice(0,i+6)+adminBridge(s.x,s.sid)+h.slice(i+6):adminBridge(s.x,s.sid)+h;
+    h=h.replace("<head>",'<head><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#141C3B"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">');
+    document.open(); document.write(h); document.close(); }
   function tool(v,html){ var h=String(html||""), i=h.indexOf("<head>"); h=i>=0?h.slice(0,i+6)+bridge(v.x)+h.slice(i+6):bridge(v.x)+h;
     h=h.replace("<head>",'<head><link rel="manifest" href="/manifest.webmanifest"><meta name="theme-color" content="#141C3B">');
     document.open(); document.write(h); document.close(); }
@@ -99,12 +106,14 @@
     function go(uid,cd){ var code=cd||c.value; b.disabled=true; b.textContent="Vérification…";
       api(x,"verifyEmail",[a,code,uid||""]).then(function(r){
         if(r.choix){ var ad=/^https:/.test(r.admin||"")?r.admin:""; msg.innerHTML='<h1>Choisissez la société</h1>'+r.choix.map(function(o,i){ return '<button class="soc" data-i="'+i+'">'+esc(o.societe)+'<br><small>'+esc(o.role)+'</small></button>'; }).join("")+(ad?'<div class="sep">Hesa Solutions</div><button class="adm" id="adm">🛠 Mon administration<br><small>clients, accès, paramètres</small></button>':'')+'<div class="err" id="err"></div>';
-          if(ad) $("adm").onclick=function(){ var w=null; try{ w=window.open(ad,"_blank"); }catch(e){} if(!w) location.href=ad; };
+          if(ad) $("adm").onclick=function(){ this.disabled=true; this.textContent="Ouverture…"; go("__admin", code); };
           [].forEach.call(document.querySelectorAll(".soc"),function(el){ el.onclick=function(){ var o=r.choix[+el.getAttribute("data-i")]; [].forEach.call(document.querySelectorAll(".soc"),function(z){ z.disabled=true; }); el.textContent="Ouverture…"; go(o.uid, code); }; }); return; }
+        if(r.admin){ setSess({x:x,sid:r.sid,uid:r.uid,admin:true}); adminPage({x:x,sid:r.sid},r.html); return; }
         setSess({x:x,sid:r.sid,uid:r.uid}); tool({x:x},r.html); })
       .catch(function(e){ var er=$("err"); if(er) er.textContent=e.message; b.disabled=false; b.textContent="Se connecter"; }); }
     b.onclick=function(){ go(""); }; }
   function resumeMail(s){ busy("Ouverture…");
+    if(s.admin){ api(s.x,"adminApp",[s.sid]).then(function(r){ adminPage(s,r.html); }).catch(function(e){ if(e.code==="needs_reauth"){ setSess(null); mail(""); } else { s.admin=false; setSess(s); resumeMail(s); } }); return; }
     api(s.x,"resumeSession",[s.sid]).then(function(r){ tool({x:s.x},r.html); }).catch(function(e){ setSess(null); mail(e.code==="needs_reauth"?"":e.message); }); }
   function ask(err){ msg.innerHTML='<h1>Bienvenue sur Hesa Gestion</h1><p>Ouvrez le lien personnel reçu par mail de Hesa Solutions, ou collez-le ici.</p>'+
       '<input id="lien" placeholder="Collez votre lien personnel" autocomplete="off" inputmode="url"><button id="go">Continuer</button><div class="err" id="err">'+esc(err||"")+'</div>'+
