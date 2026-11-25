@@ -25,6 +25,9 @@
   .loader{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--brand);margin:20px auto;animation:r 1s linear infinite}
   @keyframes r{to{transform:rotate(360deg)}}
   .err{color:#C62828}
+  .chk{border:2px solid #F5B942;background:#FFF8E6;border-radius:14px;padding:12px 14px;margin:16px 0 4px}
+  .chk b{color:#6B4A00} .chk ul{list-style:none;padding:0;margin:8px 0 0} .chk li{display:flex;gap:8px;align-items:center;font-size:14px;color:#3C4043;margin:5px 0} .chk li span{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:4px;background:#1A73E8;color:#fff;font-size:13px;flex:none}
+  .btn.retry{background:#F5B942;color:#2A1A00}
 </style>
 </head>
 <body>
@@ -44,12 +47,13 @@
     m.innerHTML='<div class="loader"></div><p style="text-align:center">Finalisation de la connexion…</p>';
     try{ history.replaceState(null,"",location.pathname); }catch(e){}
     api("oauthFinish",[q.get("state"),q.get("code")||"",q.get("error")||""]).then(function(r){
-      m.innerHTML=(r.ok?'<p class="ok">✅</p>':'')+'<h1>'+esc(r.titre)+'</h1>'+r.corps+(r.ok?back:'');
+      m.innerHTML=(r.ok?'<p class="ok">✅</p>':'')+'<h1>'+esc(r.titre)+'</h1>'+r.corps+(r.ok?back:(r.retry?'<a class="btn retry" href="connect.html?t='+encodeURIComponent(r.retry)+'">↻ Recommencer et cocher toutes les cases</a>':''));
     }).catch(function(e){ fail(e.message); });
     return; }
   var t=q.get("t"); if(!t) return fail("Lien incomplet.");
   api("oauthStart",[t]).then(function(r){
     m.innerHTML='<h1>Connecter '+esc(r.societe)+'</h1><p>Hesa Gestion va pouvoir, pour la boîte <b>'+esc(r.email)+'</b> :</p><ul><li>lire et classer vos mails, et préparer des réponses ;</li><li>consulter et ajouter des rendez-vous dans votre agenda.</li></ul>'+
+      '<div class="chk"><b>⚠ Important :</b> à l\'étape suivante, Google affiche des cases. <b>Cochez-les toutes</b> (ou « Tout sélectionner ») avant de cliquer sur Continuer :<ul><li><span>✓</span>Lire, rédiger et envoyer des e-mails…</li><li><span>✓</span>Gérer les libellés de votre boîte</li><li><span>✓</span>Voir et modifier les événements de votre agenda</li></ul></div>'+
       '<a class="g" id="go" href="'+esc(r.url)+'">'+G+' Se connecter avec Google</a>'+
       '<p class="s">Choisissez le compte <b>'+esc(r.email)+'</b> et <b>cochez toutes les autorisations</b>. Aucun mot de passe n\'est communiqué à Hesa ; vous pouvez retirer l\'accès à tout moment dans votre compte Google.</p>'+
       '<p class="s">Si Google affiche « Google n\'a pas validé cette application » : touchez <b>Paramètres avancés</b> (ou « Avancé »), puis <b>Accéder à Hesa Gestion</b>.</p>';
